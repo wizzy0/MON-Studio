@@ -13,12 +13,22 @@ const firebaseConfig = {
   firestoreDatabaseId: import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID,
 };
 
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || '(default)');
-export const auth = getAuth(app);
+// Handle missing config gracefully to avoid white screen
+const isConfigValid = !!firebaseConfig.apiKey && !!firebaseConfig.projectId;
+
+if (!isConfigValid) {
+  console.warn("Firebase configuration is missing! Make sure to set VITE_FIREBASE_* environment variables.");
+}
+
+const app = isConfigValid ? initializeApp(firebaseConfig) : undefined;
+export const db = app ? getFirestore(app, firebaseConfig.firestoreDatabaseId || '(default)') : undefined as any;
+export const auth = app ? getAuth(app) : undefined as any;
 export const googleProvider = new GoogleAuthProvider();
 
 export const signInWithGoogle = async () => {
+  if (!auth) {
+    throw new Error("Firebase Auth is not initialized. Check your environment variables.");
+  }
   try {
     return await signInWithPopup(auth, googleProvider);
   } catch (error: any) {
@@ -26,9 +36,11 @@ export const signInWithGoogle = async () => {
     throw error;
   }
 };
-export const signOut = () => auth.signOut();
+
+export const signOut = () => auth?.signOut();
 
 export const syncUser = async (user: User) => {
+  if (!db) return null;
   const userRef = doc(db, 'users', user.uid);
   const userSnap = await getDoc(userRef);
   const isAdminEmail = user.email === 'AnomMahesa02@gmail.com';

@@ -48,6 +48,14 @@ export default function App() {
   const isAdmin = user?.email === 'AnomMahesa02@gmail.com' || userProfile?.role === 'owner';
 
   useEffect(() => {
+    if (!auth) {
+      setLoading(false);
+      const timer = setTimeout(() => {
+        setShowSplash(false);
+      }, 2800);
+      return () => clearTimeout(timer);
+    }
+
     const unsubscribe = auth.onAuthStateChanged(async (u) => {
       if (u) {
         try {
