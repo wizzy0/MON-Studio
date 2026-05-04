@@ -1,0 +1,84 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'AnomMahesa02@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner')
+      );
+    }
+
+    function isMember() {
+      return isAdmin() || (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'editor');
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- User Rules ---
+    match /users/{userId} {
+      function isValidUser(data) {
+        return data.email is string && 
+               data.role in ['owner', 'editor'];
+      }
+      
+      allow read: if isSignedIn();
+      // Allow users to create their own profile if it doesn't exist
+      // Or allow admin to create users
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidUser(incoming());
+      allow update: if isAdmin() || (isSignedIn() && request.auth.uid == userId && incoming().role == existing().role);
+    }
+
+    // --- Project Rules ---
+    match /projects/{projectId} {
+      function isValidProject(data) {
+        return data.name is string && data.name.size() > 0 &&
+               data.status in ['active', 'finished'] &&
+               data.progressStatus in ['pending', 'on_progress', 'complete'] &&
+               data.projectType in ['prewed', 'documentation'] &&
+               (data.totalFiles == null || data.totalFiles is number) &&
+               (data.afterSortFiles == null || data.afterSortFiles is number);
+      }
+
+      // Admin and Editors can read all projects
+      allow get: if isMember();
+      allow list: if isMember();
+      
+      // Admin (Owner) and Editors (Member) can create projects
+      allow create: if isMember() && isValidProject(incoming()) && isValidId(projectId);
+      
+      // Admin can update anything, Editors can only update phases/progress/status
+      allow update: if isMember() && (
+        isAdmin() || 
+        (incoming().diff(existing()).affectedKeys().hasOnly(['phases', 'updatedAt', 'progressStatus', 'status', 'finishedAt', 'totalFiles', 'afterSortFiles']) &&
+         isValidProject(incoming()))
+      );
+      
+      // Only Admin can delete
+      allow delete: if isAdmin();
+    }
+  }
+}
