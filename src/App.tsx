@@ -164,7 +164,12 @@ export default function App() {
                   try {
                     await signInWithGoogle();
                   } catch (error: any) {
-                    toast.error("Gagal login: " + (error.message || "Pastikan domain ini telah diizinkan di Firebase."));
+                    console.error("Login Error:", error);
+                    if (error.code === 'auth/unauthorized-domain' || error.message?.includes('403')) {
+                      toast.error("Error 403: Domain ini belum diizinkan di Firebase Console (Authorized Domains).", { duration: 6000 });
+                    } else {
+                      toast.error("Gagal login: " + (error.message || "Pastikan domain ini telah diizinkan di Firebase."));
+                    }
                   }
                 }}
                 size="lg"
