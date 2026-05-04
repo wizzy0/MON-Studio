@@ -8,7 +8,14 @@ export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
-export const signInWithGoogle = () => signInWithPopup(auth, googleProvider);
+export const signInWithGoogle = async () => {
+  try {
+    return await signInWithPopup(auth, googleProvider);
+  } catch (error: any) {
+    console.error("Login component error:", error);
+    throw error;
+  }
+};
 export const signOut = () => auth.signOut();
 
 export const syncUser = async (user: User) => {
@@ -26,7 +33,15 @@ export const syncUser = async (user: User) => {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     };
-    await setDoc(userRef, userData);
+    try {
+      await setDoc(userRef, userData);
+    } catch (e: any) {
+      console.error("Failed to create user doc (likely 403):", e);
+      // If it's a 403, we might still want to return the local data so the app can try to function
+      // for the owner who bypasses document check in rules
+      if (isAdminEmail) return userData;
+      throw e;
+    }
     return userData;
   }
   

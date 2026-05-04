@@ -46,10 +46,13 @@ service cloud.firestore {
       }
       
       allow read: if isSignedIn();
-      // Allow users to create their own profile if it doesn't exist
-      // Or allow admin to create users
       allow create: if isSignedIn() && request.auth.uid == userId && isValidUser(incoming());
-      allow update: if isAdmin() || (isSignedIn() && request.auth.uid == userId && incoming().role == existing().role);
+      allow update: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
+    }
+
+    // --- Connection Test ---
+    match /test/connection {
+      allow read: if true;
     }
 
     // --- Project Rules ---

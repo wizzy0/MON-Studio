@@ -160,7 +160,13 @@ export default function App() {
                 </p>
               </div>
               <Button 
-                onClick={signInWithGoogle}
+                onClick={async () => {
+                  try {
+                    await signInWithGoogle();
+                  } catch (error: any) {
+                    toast.error("Gagal login: " + (error.message || "Pastikan domain ini telah diizinkan di Firebase."));
+                  }
+                }}
                 size="lg"
                 className="h-14 w-full max-w-[280px] bg-white text-black font-bold uppercase tracking-widest hover:bg-white/90 transition-all rounded-sm"
               >
